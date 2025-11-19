@@ -1,17 +1,24 @@
 import re
+import logging
 import httpx
 from fastapi import HTTPException
 from app.core.config import settings
 
+logger = logging.getLogger(__name__)
+
 async def analyze_text(sector: str, texts: list):
     prompt = f"""
-    Analyze the {sector} sector.
+    Analyze the {sector} sector in India.
+    Focus on Indian market trends, regulations, and opportunities.
     Provide:
-    - Summary
-    - Opportunities
-    - Risks
-    Using this data:
+    - Summary of the current state of the {sector} sector in India
+    - Trade opportunities specific to the Indian market
+    - Risks and challenges facing the {sector} sector in India
+    
+    Use the following market data and news:
     {texts}
+    
+    Format your response in markdown with sections: ## Summary, ### Opportunities, ### Risks
     """
 
     url = (
@@ -19,7 +26,7 @@ async def analyze_text(sector: str, texts: list):
         "models/gemini-2.5-flash:generateContent"
     )
 
-    print(f"[Gemini API] Analyzing {sector} sector with {len(texts)} text items")
+    logger.info(f"Analyzing {sector} sector (India) with {len(texts)} text items")
     try:
         async with httpx.AsyncClient() as client:
             res = await client.post(
@@ -28,7 +35,7 @@ async def analyze_text(sector: str, texts: list):
                 timeout=60
             )
     except Exception as e:
-        print(f"[Gemini API] ✗ Error: {str(e)}")
+        logger.error(f"Gemini API unreachable: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Gemini API unreachable: {str(e)}")
 
     if res.status_code != 200:
@@ -36,18 +43,18 @@ async def analyze_text(sector: str, texts: list):
             msg = res.json().get("error", {}).get("message", res.text)
         except Exception:
             msg = res.text
-        print(f"[Gemini API] ✗ HTTP {res.status_code}: {msg}")
+        logger.error(f"Gemini API HTTP {res.status_code}: {msg}")
         raise HTTPException(status_code=500, detail=f"Gemini API error: {msg}")
 
     data = res.json()
 
     # Check for expected Gemini response keys
     if "candidates" not in data or not data["candidates"]:
-        print(f"[Gemini API] ✗ No candidates in response")
+        logger.error("Gemini API returned no candidates in response")
         raise HTTPException(status_code=500, detail="Gemini API returned no candidates")
 
     text = data["candidates"][0]["content"]["parts"][0]["text"]
-    print(f"[Gemini API] ✓ Analysis complete, response length: {len(text)} characters")
+    logger.info(f"Analysis complete for {sector} sector, response length: {len(text)} characters")
 
     # --- Parse markdown for Summary, Opportunities, Risks ---
     def extract_section(pattern: str, text: str):

@@ -1,6 +1,6 @@
 # Trade Opportunities API
 
-A FastAPI-based REST API that analyzes trade opportunities in different sectors by collecting news data, scraping web content, and using AI to generate comprehensive market analysis reports.
+A FastAPI-based REST API that analyzes trade opportunities in different sectors in India by collecting news data from NewsData.io, searching for relevant market information via SerpAPI, and using Google Gemini AI to generate comprehensive market analysis reports.
 
 ## 📁 Directory Structure
 
@@ -54,12 +54,15 @@ RATE_LIMIT_PER_MIN=5  # Maximum requests per minute per user
 # NewsData.io API (News Data Collection)
 NEWSDATA_API_KEY=your-newsdata-api-key
 
+# SerpAPI (Web Search)
+SERPAPI_KEY=your-serpapi-api-key
+
 # Google Gemini AI (AI Analysis)
 GEMINI_API_KEY=your-gemini-api-key
 
-# Browserbase (Web Scraping)
-BROWSERBASE_API_KEY=your-browserbase-api-key
-BROWSERBASE_PROJECT_ID=your-browserbase-project-id
+# Browserbase (Optional - Web Scraping, not currently used)
+BROWSERBASE_API_KEY=your-browserbase-api-key  # Optional
+BROWSERBASE_PROJECT_ID=your-browserbase-project-id  # Optional
 
 # Legacy (optional, not currently used)
 NEWS_API_KEY=your-news-api-key  # Optional, for alternative news source
@@ -77,7 +80,18 @@ NEWS_API_KEY=your-news-api-key  # Optional, for alternative news source
   4. Free tier: 200 requests/day
 - **Documentation**: https://newsdata.io/docs
 
-#### 2. **Google Gemini API Key** (`GEMINI_API_KEY`)
+#### 2. **SerpAPI Key** (`SERPAPI_KEY`)
+- **Website**: https://serpapi.com/
+- **Sign up**: Create a free account at https://serpapi.com/users/sign_up
+- **Get API Key**:
+  1. Log in to your SerpAPI dashboard
+  2. Navigate to "Dashboard" → "API Key"
+  3. Copy your API key (starts with `...`)
+  4. Free tier: 100 searches/month
+  5. Used for: Searching Google for relevant market news links
+- **Documentation**: https://serpapi.com/search-api
+
+#### 3. **Google Gemini API Key** (`GEMINI_API_KEY`)
 - **Website**: https://makersuite.google.com/app/apikey
 - **Sign up**: Use your Google account
 - **Get API Key**:
@@ -88,7 +102,7 @@ NEWS_API_KEY=your-news-api-key  # Optional, for alternative news source
   5. Free tier: 15 RPM (requests per minute)
 - **Documentation**: https://ai.google.dev/docs
 
-#### 3. **Browserbase API Key & Project ID** (`BROWSERBASE_API_KEY`, `BROWSERBASE_PROJECT_ID`)
+#### 4. **Browserbase API Key & Project ID** (`BROWSERBASE_API_KEY`, `BROWSERBASE_PROJECT_ID`) - Optional
 - **Website**: https://www.browserbase.com/
 - **Sign up**: Create an account at https://www.browserbase.com/sign-up
 - **Get API Key & Project ID**:
@@ -100,7 +114,7 @@ NEWS_API_KEY=your-news-api-key  # Optional, for alternative news source
   6. Free tier: Limited requests/month
 - **Documentation**: https://docs.browserbase.com/
 
-#### 4. **SECRET_KEY** (JWT Authentication)
+#### 5. **SECRET_KEY** (JWT Authentication)
 - **Generate**: Use any random string (recommended: 32+ characters)
 - **Example**: 
   ```bash
@@ -133,12 +147,7 @@ NEWS_API_KEY=your-news-api-key  # Optional, for alternative news source
    pip install -r requirements.txt
    ```
 
-4. **Install Playwright browsers** (required for Browserbase)
-   ```bash
-   playwright install chromium
-   ```
-
-5. **Create `.env` file**
+4. **Create `.env` file**
    ```bash
    cp .env.example .env  # If you have an example file
    # Or create manually:
@@ -147,63 +156,55 @@ NEWS_API_KEY=your-news-api-key  # Optional, for alternative news source
    
    Then add all the required environment variables as shown in the [API Keys Setup](#-api-keys-setup) section.
 
-6. **Run the application**
+   **Note**: Only `SECRET_KEY`, `NEWSDATA_API_KEY`, `SERPAPI_KEY`, and `GEMINI_API_KEY` are required. Browserbase keys are optional.
+
+5. **Run the application**
    ```bash
    uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
    ```
 
-7. **Access the API**
+6. **Access the API**
    - API Base URL: http://localhost:8000
    - Interactive API Docs (Swagger): http://localhost:8000/docs
    - Alternative API Docs (ReDoc): http://localhost:8000/redoc
 
 ## 🔄 Workflow
 
-The API follows a 4-step workflow for analyzing trade opportunities:
+The API follows a 4-step workflow for analyzing trade opportunities in India:
 
 ### Step 1: News Data Collection
 - **Service**: `app/services/data_collector.py`
 - **API Used**: NewsData.io
 - **Process**:
-  1. Fetches news articles related to the specified sector
-  2. Extracts text content from news descriptions and titles
-  3. Returns top 5 relevant news items
+  1. Fetches news articles related to the specified sector in India
+  2. Uses India country code (`in`) for localized news
+  3. Extracts text content from news descriptions and titles
+  4. Returns top 5 relevant news items
 - **Output**: Array of news text items
 - **Status**: Tracked in `intermediate_results.step_1_news_data`
 
-### Step 2: Browserbase Session Creation
-- **Service**: `app/services/browserbase_scraper.py`
-- **API Used**: Browserbase
+### Step 2: Web Search with SerpAPI
+- **Service**: `app/api/v1/analyze.py`
+- **API Used**: SerpAPI (Google Search API)
 - **Process**:
-  1. Creates a Browserbase session for web scraping
-  2. Connects to the browser via CDP (Chrome DevTools Protocol)
-  3. Prepares for content extraction
-- **Output**: Browserbase session connection URL
-- **Status**: Tracked in `intermediate_results.step_2_browserbase_session`
+  1. Constructs search query: `"{sector} India market news"`
+  2. Uses SerpAPI to search Google for relevant market news
+  3. Retrieves top 5 search result links
+  4. Filters out excluded domains (configurable)
+  5. Returns list of relevant URLs for reference
+- **Output**: Array of search result URLs
+- **Status**: Tracked in `intermediate_results.step_2_search_links`
+- **Note**: URLs are collected but not scraped (no content extraction)
 
-### Step 3: Web Scraping
-- **Service**: `app/services/browserbase_scraper.py`
-- **Process**:
-  1. Navigates to sector-specific URL (e.g., Reuters markets page)
-  2. Loads and waits for page content
-  3. Extracts HTML content from the page
-  4. Parses HTML to extract relevant text:
-     - Removes script and style tags
-     - Extracts paragraph and heading text
-     - Filters out short text snippets (< 50 characters)
-  5. Returns top 10 paragraphs and 5 headings
-- **Output**: Array of extracted text items from web scraping
-- **Status**: Tracked in `intermediate_results.step_3_scraped_content`
-
-### Step 4: AI Analysis
+### Step 3: AI Analysis
 - **Service**: `app/services/ai_client.py`
 - **API Used**: Google Gemini 2.5 Flash
 - **Process**:
-  1. Combines news data (Step 1) with scraped content (Step 3)
-  2. Constructs a prompt asking for:
-     - Summary of the sector
-     - Trade opportunities
-     - Risks
+  1. Combines news data (Step 1) with search links (Step 2) as context
+  2. Constructs a prompt focused on Indian market analysis:
+     - Summary of the sector in India
+     - Trade opportunities specific to Indian market
+     - Risks and challenges in India
   3. Sends combined data to Gemini API
   4. Parses the AI response to extract:
      - Summary text
@@ -212,15 +213,23 @@ The API follows a 4-step workflow for analyzing trade opportunities:
      - Full markdown formatted response
   5. Generates formatted markdown report
 - **Output**: Analysis object with summary, opportunities, risks, and markdown
-- **Status**: Tracked in `intermediate_results.step_4_ai_analysis`
+- **Status**: Tracked in `intermediate_results.step_3_ai_analysis`
+
+### Step 4: Markdown Report Generation
+- **Service**: `app/services/report_generator.py`
+- **Process**:
+  1. Formats the AI analysis into structured markdown
+  2. Creates sections for Summary, Opportunities, and Risks
+  3. Generates a complete markdown document
+- **Output**: Formatted markdown string ready for saving as `.md` file
 
 ### Final Response
 - Combines all results into a structured response
 - Includes:
   - Sector name
   - Summary (truncated to 200 chars)
-  - Full markdown report
-  - Sources used (newsdata.io, browserbase, gemini)
+  - Full markdown report (can be saved as `.md` file)
+  - Sources used (newsdata.io, serpapi, gemini)
   - Complete intermediate results from all steps
 
 ## 📡 API Endpoints
@@ -259,40 +268,20 @@ Authorization: Bearer <your-token>
   "sector": "technology",
   "summary": "The technology sector shows strong growth potential...",
   "markdown": "# Technology Sector Market Report\n\n## Summary\n...",
-  "sources": ["newsdata.io", "browserbase", "gemini"],
+  "sources": ["newsdata.io", "serpapi", "gemini"],
   "intermediate_results": {
     "step_1_news_data": {
-      "step": "News Data Collection",
-      "status": "success",
       "items_count": 5,
-      "preview": [...],
-      "full_data": [...]
+      "preview": [...]
     },
-    "step_2_browserbase_session": {
-      "step": "Browserbase Session Creation",
-      "status": "success",
-      "session_created": true,
-      "url_scraped": "https://www.reuters.com/...",
-      "sector": "technology"
+    "step_2_search_links": {
+      "links": ["https://...", "https://..."],
+      "total_links": 5
     },
-    "step_3_scraped_content": {
-      "step": "Web Scraping",
-      "status": "success",
-      "content_length": 12345,
-      "extracted_texts_count": 8,
-      "content_preview": "...",
-      "extracted_texts_preview": [...]
-    },
-    "step_4_ai_analysis": {
-      "step": "AI Analysis",
-      "status": "success",
-      "model": "gemini-2.5-flash",
+    "step_3_ai_analysis": {
       "summary_length": 500,
       "opportunities_count": 2,
-      "risks_count": 2,
-      "opportunities": [...],
-      "risks": [...],
-      "full_markdown": "..."
+      "risks_count": 2
     }
   }
 }
@@ -370,32 +359,40 @@ print(response.json())
    - Check for extra spaces or quotes around keys
    - Ensure `.env` file is in the root directory
 
-3. **Browserbase connection errors**
+3. **SerpAPI errors**
+   - Verify `SERPAPI_KEY` is correct
+   - Check SerpAPI account status and credits (free tier: 100 searches/month)
+   - Ensure internet connection is available
+   - If rate limited, wait before making more requests
+
+4. **Browserbase connection errors** (if using)
    - Verify `BROWSERBASE_API_KEY` and `BROWSERBASE_PROJECT_ID` are correct
    - Check Browserbase account status and credits
    - Ensure Playwright browsers are installed: `playwright install chromium`
+   - Note: Browserbase is optional and not currently used in the workflow
 
-4. **Gemini API errors**
+5. **Gemini API errors**
    - Check API key is valid and not expired
    - Verify quota limits (free tier: 15 RPM)
    - Ensure model name is correct (currently using `gemini-2.5-flash`)
 
-5. **NewsData.io errors**
+6. **NewsData.io errors**
    - Verify API key is correct
    - Check daily request limit (free tier: 200/day)
    - Ensure internet connection is available
 
 ## 📝 Environment Variables Reference
 
-| Variable                  | Description            | Required  Example                        |
-|---------------            |---------------         |----------|---------                      |
-| `SECRET_KEY`              | JWT signing secret     | Yes      | `your-secret-key-32-chars`    |
-| `RATE_LIMIT_PER_MIN`      | Rate limit per user    | No       | `5` (default)                 |
-| `NEWSDATA_API_KEY`        | NewsData.io API key    | Yes      | `pub_12345...`                |
-| `GEMINI_API_KEY`          | Google Gemini API key  | Yes      | `AIza...`                     |
-| `BROWSERBASE_API_KEY`     | Browserbase API key    | Yes      | `bb_...`                      |
-| `BROWSERBASE_PROJECT_ID`  | Browserbase project ID | Yes      | `proj_...`                    |
-| `NEWS_API_KEY`            | Legacy news API key    | No       | (optional)                    |
+| Variable                  | Description            | Required  | Example                        |
+|---------------------------|------------------------|-----------|--------------------------------|
+| `SECRET_KEY`              | JWT signing secret     | Yes       | `your-secret-key-32-chars`    |
+| `RATE_LIMIT_PER_MIN`      | Rate limit per user    | No        | `5` (default)                 |
+| `NEWSDATA_API_KEY`        | NewsData.io API key    | Yes       | `pub_12345...`                |
+| `SERPAPI_KEY`             | SerpAPI key            | Yes       | `...`                         |
+| `GEMINI_API_KEY`          | Google Gemini API key  | Yes       | `AIza...`                     |
+| `BROWSERBASE_API_KEY`     | Browserbase API key    | No        | `bb_...` (optional)           |
+| `BROWSERBASE_PROJECT_ID`  | Browserbase project ID | No        | `proj_...` (optional)         |
+| `NEWS_API_KEY`            | Legacy news API key    | No        | (optional)                    |
 
 ## 📚 Dependencies
 
@@ -404,10 +401,10 @@ print(response.json())
 - **Pydantic**: Data validation using Python type annotations
 - **PyJWT**: JWT token encoding/decoding
 - **httpx**: Async HTTP client for API calls
-- **Browserbase**: Browser automation and web scraping
-- **Playwright**: Browser automation library
-- **BeautifulSoup4**: HTML parsing (for web scraping)
 - **python-dotenv**: Environment variable management
+- **Browserbase**: Browser automation (optional, not currently used)
+- **Playwright**: Browser automation library (optional, for Browserbase)
+- **BeautifulSoup4**: HTML parsing (optional, for web scraping)
 
 ## 📄 License
 

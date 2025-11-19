@@ -10,7 +10,7 @@ def generate_markdown(sector: str, analysis: dict):
         risks.append("-")
 
     markdown = f"""
-# {sector.capitalize()} Sector Market Report
+# {sector.capitalize()} Sector Market Report - India
 
 ## Summary
 {analysis['summary']}

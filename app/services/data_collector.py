@@ -1,6 +1,9 @@
+import logging
 import httpx
 from fastapi import HTTPException
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 API_KEY = settings.NEWSDATA_API_KEY
 
@@ -9,28 +12,28 @@ async def fetch_news(sector: str):
 
     params = {
         "apikey": API_KEY,
-        "q": sector,
+        "q": f"{sector} India",  # Explicitly search for sector in India
         "language": "en",
-        "country": "us",
+        "country": "in",  # India country code
     }
 
-    print(f"[News API] Fetching news for sector: {sector}")
+    logger.info(f"Fetching news for sector: {sector} (India)")
     try:
         async with httpx.AsyncClient(timeout=8.0) as client:
             resp = await client.get(url, params=params)
     except Exception as e:
-        print(f"[News API] ✗ Error: {str(e)}")
+        logger.error(f"News API unreachable: {str(e)}")
         raise HTTPException(status_code=500, detail=f"News API unreachable: {str(e)}")
 
     if resp.status_code != 200:
-        print(f"[News API] ✗ HTTP {resp.status_code} error")
+        logger.error(f"News API HTTP {resp.status_code} error")
         raise HTTPException(status_code=500, detail=f"News API error {resp.status_code}")
 
     data = resp.json()
 
     # NewsData.io returns results under 'results'
     if "results" not in data or not data["results"]:
-        print(f"[News API] ✗ No results found")
+        logger.warning(f"No news results found for sector: {sector}")
         raise HTTPException(status_code=500, detail="No news found for this sector")
 
     # Extract text materials
@@ -42,8 +45,8 @@ async def fetch_news(sector: str):
             texts.append(item["title"])
 
     if not texts:
-        print(f"[News API] ✗ No text content extracted")
+        logger.warning(f"No text content extracted for sector: {sector}")
         raise HTTPException(status_code=500, detail="News API returned empty results")
 
-    print(f"[News API] ✓ Retrieved {len(texts)} news items")
+    logger.info(f"Retrieved {len(texts)} news items for sector: {sector}")
     return texts[:5]
