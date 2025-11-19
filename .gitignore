@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environment
+appscrip_venv/
+
+# Environment variables
+.env
+.env.*
+
+# IDE/editor settings
+.vscode/
+.idea/
