@@ -132,8 +132,9 @@ NEWS_API_KEY=your-news-api-key  # Optional, for alternative news source
 
 1. **Clone the repository**
    ```bash
-   git clone <repository-url>
-   cd trade-opportunities-api
+   git clone https://github.com/sayout-de003/appscrip_assignment_sayantan_de.git
+    cd appscrip_assignment_sayantan_de
+
    ```
 
 2. **Create a virtual environment**
@@ -408,11 +409,10 @@ print(response.json())
 
 ## 📄 License
 
-[Add your license information here]
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 👥 Contributors
 
-[Add contributor information here]
+#
 
 ## 🆘 Support
 
@@ -421,6 +421,8 @@ For issues and questions:
 - Check the [Troubleshooting](#-troubleshooting) section
 - Review API documentation at `/docs` endpoint
 
+
+contact : desayantan1947@gmail.com
 ---
 
 **Note**: This API requires active internet connection and valid API keys for all services to function properly.
